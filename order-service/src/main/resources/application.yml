@@ -1,0 +1,50 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: order-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:5432/orders_db
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:CHANGE_ME}   # PLACEHOLDER — inject via secret manager / K8s Secret
+  jpa:
+    hibernate:
+      ddl-auto: validate                 # schema owned by Flyway, never Hibernate
+    open-in-view: false
+  flyway:
+    enabled: true
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all                          # durability over latency for order events
+      properties:
+        enable.idempotence: true
+    consumer:
+      group-id: order-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      enable-auto-commit: false          # offsets committed only after successful processing
+    listener:
+      ack-mode: record
+
+outbox:
+  relay:
+    poll-interval-ms: 500
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  tracing:
+    sampling:
+      probability: 1.0   # PLACEHOLDER: lower in production (e.g. 0.1)

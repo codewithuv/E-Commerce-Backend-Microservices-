@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+
+      # Testcontainers-based integration tests need Docker (present on ubuntu-latest)
+      - name: Build & test all modules
+        run: mvn -B clean verify
+
+      - name: Build Docker images
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker build -f order-service/Dockerfile -t order-service:${{ github.sha }} .
+          # PLACEHOLDER: docker login + push to your registry (GHCR/ECR/Docker Hub)

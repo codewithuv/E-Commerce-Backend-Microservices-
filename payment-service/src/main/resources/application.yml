@@ -1,0 +1,58 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: payment-service
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:5434/payments_db
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:CHANGE_ME}   # PLACEHOLDER
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+    consumer:
+      group-id: payment-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+payment:
+  gateway:
+    api-key: ${PAYMENT_GATEWAY_API_KEY:PLACEHOLDER_API_KEY}   # inject via secrets
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      paymentGateway:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 20s
+  retry:
+    instances:
+      paymentGateway:
+        maxAttempts: 3
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+  bulkhead:
+    instances:
+      paymentGateway:
+        maxConcurrentCalls: 25
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,circuitbreakers
